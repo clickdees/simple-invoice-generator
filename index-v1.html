@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Invoice Generator</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: '#0f172a', // Slate 900
+                        accent: '#3b82f6', // Blue 500
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- html2pdf Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Input styling to make them look like text until hovered/focused */
+        input, textarea {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+            width: 100%;
+            outline: none;
+        }
+
+        input:hover:not(.pdf-mode), textarea:hover:not(.pdf-mode) {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+
+        input:focus:not(.pdf-mode), textarea:focus:not(.pdf-mode) {
+            border-color: #3b82f6;
+            background: #fff;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Placeholder styling */
+        ::placeholder {
+            color: #94a3b8;
+            opacity: 1;
+        }
+
+        /* Hide specific elements during PDF generation */
+        .pdf-mode .no-print {
+            display: none !important;
+        }
+
+        /* Remove borders and backgrounds from inputs during PDF generation */
+        .pdf-mode input, .pdf-mode textarea {
+            border-color: transparent !important;
+            background: transparent !important;
+            resize: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Hide empty inputs during PDF generation to keep layout clean */
+        .pdf-mode input:placeholder-shown,
+        .pdf-mode textarea:placeholder-shown {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="py-10">
+
+    <!-- Control Panel -->
+    <div class="max-w-4xl mx-auto mb-6 flex justify-between items-center px-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Invoice Generator</h1>
+            <p class="text-sm text-gray-500">Edit the fields below, then download your professional PDF.</p>
+        </div>
+        <button onclick="generatePDF()" class="bg-accent hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
+            <i data-feather="download" class="w-5 h-5"></i>
+            Download PDF
+        </button>
+    </div>
+
+    <!-- Invoice Canvas -->
+    <div id="invoice-canvas" class="max-w-4xl mx-auto bg-white shadow-xl sm:rounded-lg overflow-hidden border border-gray-100">
+        <!-- Colored Header Bar -->
+        <div class="h-4 bg-brand w-full"></div>
+        
+        <div class="p-10 sm:p-14">
+            
+            <!-- Header Section -->
+            <div class="flex justify-between items-start border-b pb-10">
+                <div class="w-1/2">
+                    <input type="text" class="text-3xl font-bold text-brand uppercase tracking-wider mb-2" value="INVOICE">
+                    <textarea class="text-gray-600 leading-relaxed font-medium mt-4" rows="4" placeholder="Your Company Name&#10;123 Business Rd.&#10;City, State, Zip&#10;hello@yourcompany.com"></textarea>
+                </div>
+                <div class="w-1/3 text-right">
+                    <!-- Right Aligned Meta Data -->
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="text-gray-500 font-medium py-1">Invoice #</div>
+                        <div><input type="text" class="text-right font-medium text-gray-900" value="INV-001"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">Invoice Date</div>
+                        <div><input type="text" class="text-right text-gray-900" value="Oct 24, 2024"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">Due Date</div>
+                        <div><input type="text" class="text-right text-gray-900" value="Nov 24, 2024"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">PO Number</div>
+                        <div><input type="text" class="text-right text-gray-900" placeholder="Optional"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Section -->
+            <div class="flex justify-between items-start mt-10">
+                <div class="w-1/2 pr-4">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billed To</h3>
+                    <textarea class="text-gray-800 font-medium leading-relaxed" rows="4" placeholder="Client Name&#10;Client Address&#10;City, State, Zip&#10;client@example.com"></textarea>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="mt-10">
+                <!-- Table Header -->
+                <div class="flex bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3 rounded-t-lg border-b border-gray-200">
+                    <div class="w-3/5">Description</div>
+                    <div class="w-1/6 text-right">Rate</div>
+                    <div class="w-1/6 text-right">Qty</div>
+                    <div class="w-1/6 text-right">Amount</div>
+                    <div class="w-8 no-print"></div>
+                </div>
+
+                <!-- Table Body -->
+                <div id="items-container" class="border-b border-gray-200">
+                    <!-- Default Row 1 -->
+                    <div class="item-row flex items-center px-4 py-3 border-b border-gray-100 last:border-0 group">
+                        <div class="w-3/5 pr-4">
+                            <input type="text" class="font-medium text-gray-800" placeholder="Service or product description" value="Web Design Services">
+                        </div>
+                        <div class="w-1/6 relative flex items-center justify-end">
+                            <span class="text-gray-500 absolute left-2 pointer-events-none">$</span>
+                            <input type="number" class="rate-input text-right pl-6" value="150.00" onchange="calculate()">
+                        </div>
+                        <div class="w-1/6 pl-4">
+                            <input type="number" class="qty-input text-right" value="10" onchange="calculate()">
+                        </div>
+                        <div class="w-1/6 text-right font-medium text-gray-800 row-amount">$1,500.00</div>
+                        <div class="w-8 text-right no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i data-feather="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Row Button -->
+                <div class="px-4 py-3 no-print">
+                    <button onclick="addRow()" class="text-sm font-medium text-accent hover:text-blue-700 flex items-center gap-1">
+                        <i data-feather="plus-circle" class="w-4 h-4"></i> Add Line Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totals Section -->
+            <div class="flex justify-end mt-6">
+                <div class="w-1/2 sm:w-1/3">
+                    <div class="flex justify-between py-2 text-sm text-gray-600">
+                        <span>Subtotal</span>
+                        <span id="subtotal" class="font-medium text-gray-900">$1,500.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2 text-sm text-gray-600">
+                        <div class="flex items-center gap-2">
+                            <span>Tax (%)</span>
+                            <input type="number" id="tax-rate" class="w-16 border-gray-300 border px-2 py-1 text-right" value="0" onchange="calculate()">
+                        </div>
+                        <span id="tax-amount" class="font-medium text-gray-900">$0.00</span>
+                    </div>
+                    <div class="flex justify-between py-4 mt-2 border-t border-gray-200">
+                        <span class="text-lg font-bold text-brand">Total</span>
+                        <span id="total" class="text-lg font-bold text-accent">$1,500.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer / Notes -->
+            <div class="mt-16 pt-8 border-t border-gray-100">
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Notes</h4>
+                    <textarea class="text-sm text-gray-600" rows="2" placeholder="Thank you for your business!"></textarea>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Terms & Conditions</h4>
+                    <textarea class="text-sm text-gray-600" rows="2" placeholder="Payment is due within 30 days. Please make checks payable to Your Company Name."></textarea>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Empty Row Template (Hidden) -->
+    <template id="row-template">
+        <div class="item-row flex items-center px-4 py-3 border-b border-gray-100 last:border-0 group">
+            <div class="w-3/5 pr-4">
+                <input type="text" class="font-medium text-gray-800" placeholder="Service or product description">
+            </div>
+            <div class="w-1/6 relative flex items-center justify-end">
+                <span class="text-gray-500 absolute left-2 pointer-events-none">$</span>
+                <input type="number" class="rate-input text-right pl-6" value="0.00" onchange="calculate()">
+            </div>
+            <div class="w-1/6 pl-4">
+                <input type="number" class="qty-input text-right" value="1" onchange="calculate()">
+            </div>
+            <div class="w-1/6 text-right font-medium text-gray-800 row-amount">$0.00</div>
+            <div class="w-8 text-right no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i data-feather="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Initialize Feather Icons
+        feather.replace();
+
+        // Formatter for currency
+        const currencyFormatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        });
+
+        // Add a new row to the items table
+        function addRow() {
+            const container = document.getElementById('items-container');
+            const template = document.getElementById('row-template');
+            const clone = template.content.cloneNode(true);
+            container.appendChild(clone);
+            feather.replace(); // Re-initialize icons for the new row
+            calculate();
+        }
+
+        // Remove a specific row
+        function removeRow(button) {
+            const row = button.closest('.item-row');
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                calculate();
+            } else {
+                alert("You must have at least one line item.");
+            }
+        }
+
+        // Calculate line item totals, subtotal, tax, and total
+        function calculate() {
+            const rows = document.querySelectorAll('.item-row');
+            let subtotal = 0;
+
+            rows.forEach(row => {
+                const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
+                const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+                const amount = rate * qty;
+                
+                row.querySelector('.row-amount').innerText = currencyFormatter.format(amount);
+                subtotal += amount;
+            });
+
+            const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
+            const taxAmount = subtotal * (taxRate / 100);
+            const total = subtotal + taxAmount;
+
+            document.getElementById('subtotal').innerText = currencyFormatter.format(subtotal);
+            document.getElementById('tax-amount').innerText = currencyFormatter.format(taxAmount);
+            document.getElementById('total').innerText = currencyFormatter.format(total);
+        }
+
+        // Generate the PDF
+        function generatePDF() {
+            const invoice = document.getElementById('invoice-canvas');
+            const button = document.querySelector('button');
+            
+            // 1. Enter PDF Mode (hides buttons, removes borders)
+            invoice.classList.add('pdf-mode');
+            
+            // 2. Adjust Textareas to fit content so no scrollbars appear in PDF
+            const textareas = invoice.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
+            });
+
+            // 3. PDF Configuration
+            const opt = {
+                margin:       [-0.1, 0, 0, 0], // Slight negative top margin to make the color bar flush
+                filename:     'Invoice.pdf',
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            // Change button state
+            button.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...`;
+            
+            // 4. Generate PDF
+            html2pdf().set(opt).from(invoice).save().then(() => {
+                // 5. Restore UI
+                invoice.classList.remove('pdf-mode');
+                button.innerHTML = `<i data-feather="download" class="w-5 h-5"></i> Download PDF`;
+                feather.replace();
+                
+                textareas.forEach(textarea => {
+                    textarea.style.height = ''; // Reset height
+                });
+            });
+        }
+
+        // Initial calculation on load
+        calculate();
+    </script>
+</body>
+</html>

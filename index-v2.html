@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Invoice Generator</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: '#0f172a', accent: '#3b82f6' }
+                }
+            }
+        }
+    </script>
+
+    <!-- html2pdf Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
+    <style>
+        body { background-color: #f8fafc; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+        /* Input styling */
+        input, textarea {
+            background: transparent; border: 1px solid transparent;
+            border-radius: 0.25rem; transition: all 0.2s ease; width: 100%; outline: none;
+        }
+        input:hover:not(.pdf-mode), textarea:hover:not(.pdf-mode) { border-color: #cbd5e1; background: #f8fafc; }
+        input:focus:not(.pdf-mode), textarea:focus:not(.pdf-mode) {
+            border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        ::placeholder { color: #94a3b8; opacity: 1; }
+
+        /* PDF Mode Hiding */
+        .pdf-mode .no-print { display: none !important; }
+        .pdf-mode input, .pdf-mode textarea {
+            border-color: transparent !important; background: transparent !important;
+            resize: none !important; box-shadow: none !important;
+        }
+        .pdf-mode input:placeholder-shown, .pdf-mode textarea:placeholder-shown { display: none !important; }
+    </style>
+</head>
+<body class="py-10">
+
+    <!-- Control Panel -->
+    <div class="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center px-4 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Invoice Generator</h1>
+            <p class="text-sm text-gray-500">Auto-saves locally. Export to CSV for your records.</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <!-- Hidden File Input for CSV Import -->
+            <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="importCSV(event)">
+            
+            <button onclick="document.getElementById('csv-upload').click()" class="text-sm font-medium text-gray-600 hover:text-brand bg-white border border-gray-200 px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                <i data-feather="upload" class="w-4 h-4"></i> Import CSV
+            </button>
+            
+            <button onclick="exportCSV()" class="text-sm font-medium text-gray-600 hover:text-brand bg-white border border-gray-200 px-4 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                <i data-feather="file-text" class="w-4 h-4"></i> Export CSV
+            </button>
+
+            <button onclick="generatePDF()" class="bg-accent hover:bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
+                <i data-feather="download" class="w-5 h-5"></i> PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Invoice Canvas -->
+    <div id="invoice-canvas" class="max-w-4xl mx-auto bg-white shadow-xl sm:rounded-lg overflow-hidden border border-gray-100">
+        <div class="h-4 bg-brand w-full"></div>
+        
+        <div class="p-10 sm:p-14">
+            
+            <!-- Header Section -->
+            <div class="flex justify-between items-start border-b pb-10 gap-8">
+                <div class="w-1/2">
+                    <input type="text" id="invoice-title" class="text-3xl font-bold text-brand uppercase tracking-wider mb-2" value="INVOICE">
+                    <textarea id="company-info" class="text-gray-600 leading-relaxed font-medium mt-4" rows="4" placeholder="Your Company Name&#10;123 Business Rd.&#10;City, State, Zip&#10;hello@yourcompany.com"></textarea>
+                </div>
+                <div class="w-1/3 text-right">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="text-gray-500 font-medium py-1">Invoice #</div>
+                        <div><input type="text" id="invoice-number" class="text-right font-medium text-gray-900" value="INV-001"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">Invoice Date</div>
+                        <div><input type="text" id="invoice-date" class="text-right text-gray-900" value="Oct 24, 2024"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">Due Date</div>
+                        <div><input type="text" id="due-date" class="text-right text-gray-900" value="Nov 24, 2024"></div>
+                        
+                        <div class="text-gray-500 font-medium py-1">PO Number</div>
+                        <div><input type="text" id="po-number" class="text-right text-gray-900" placeholder="Optional"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Section -->
+            <div class="flex justify-between items-start mt-10">
+                <div class="w-1/2 pr-4">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billed To</h3>
+                    <textarea id="billed-to" class="text-gray-800 font-medium leading-relaxed" rows="4" placeholder="Client Name&#10;Client Address&#10;City, State, Zip&#10;client@example.com"></textarea>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="mt-10">
+                <div class="flex bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3 rounded-t-lg border-b border-gray-200">
+                    <div class="w-3/5">Description</div>
+                    <div class="w-1/6 text-right">Rate</div>
+                    <div class="w-1/6 text-right">Qty</div>
+                    <div class="w-1/6 text-right">Amount</div>
+                    <div class="w-8 no-print"></div>
+                </div>
+
+                <div id="items-container" class="border-b border-gray-200">
+                    <!-- Default Row 1 -->
+                    <div class="item-row flex items-center px-4 py-3 border-b border-gray-100 last:border-0 group">
+                        <div class="w-3/5 pr-4">
+                            <input type="text" class="item-desc font-medium text-gray-800" placeholder="Service or product description" value="Web Design Services">
+                        </div>
+                        <div class="w-1/6 relative flex items-center justify-end">
+                            <span class="text-gray-500 absolute left-2 pointer-events-none">$</span>
+                            <input type="number" class="item-rate text-right pl-6" value="150.00">
+                        </div>
+                        <div class="w-1/6 pl-4">
+                            <input type="number" class="item-qty text-right" value="10">
+                        </div>
+                        <div class="w-1/6 text-right font-medium text-gray-800 item-amount">$1,500.00</div>
+                        <div class="w-8 text-right no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i data-feather="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-4 py-3 no-print">
+                    <button onclick="addRow()" class="text-sm font-medium text-accent hover:text-blue-700 flex items-center gap-1">
+                        <i data-feather="plus-circle" class="w-4 h-4"></i> Add Line Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Totals Section -->
+            <div class="flex justify-end mt-6">
+                <div class="w-full sm:w-1/2 lg:w-1/3">
+                    <div class="flex justify-between py-2 text-sm text-gray-600">
+                        <span>Subtotal</span>
+                        <span id="subtotal" class="font-medium text-gray-900">$1,500.00</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2 text-sm text-gray-600">
+                        <div class="flex items-center gap-2">
+                            <span>Tax (%)</span>
+                            <input type="number" id="tax-rate" class="w-16 border-gray-300 border px-2 py-1 text-right" value="0">
+                        </div>
+                        <span id="tax-amount" class="font-medium text-gray-900">$0.00</span>
+                    </div>
+                    <div class="flex justify-between py-4 mt-2 border-t border-gray-200">
+                        <span class="text-lg font-bold text-brand">Total</span>
+                        <span id="total" class="text-lg font-bold text-accent">$1,500.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer / Notes -->
+            <div class="mt-16 pt-8 border-t border-gray-100">
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Notes</h4>
+                    <textarea id="notes" class="text-sm text-gray-600" rows="2" placeholder="Thank you for your business!"></textarea>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Terms & Conditions</h4>
+                    <textarea id="terms" class="text-sm text-gray-600" rows="2" placeholder="Payment is due within 30 days. Please make checks payable to Your Company Name."></textarea>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Empty Row Template -->
+    <template id="row-template">
+        <div class="item-row flex items-center px-4 py-3 border-b border-gray-100 last:border-0 group">
+            <div class="w-3/5 pr-4">
+                <input type="text" class="item-desc font-medium text-gray-800" placeholder="Service or product description">
+            </div>
+            <div class="w-1/6 relative flex items-center justify-end">
+                <span class="text-gray-500 absolute left-2 pointer-events-none">$</span>
+                <input type="number" class="item-rate text-right pl-6" value="0.00">
+            </div>
+            <div class="w-1/6 pl-4">
+                <input type="number" class="item-qty text-right" value="1">
+            </div>
+            <div class="w-1/6 text-right font-medium text-gray-800 item-amount">$0.00</div>
+            <div class="w-8 text-right no-print opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i data-feather="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        feather.replace();
+
+        const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+        
+        // ---- CORE LOGIC & CALCULATION ----
+
+        function calculate() {
+            const rows = document.querySelectorAll('.item-row');
+            let subtotal = 0;
+
+            rows.forEach(row => {
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const amount = rate * qty;
+                row.querySelector('.item-amount').innerText = currencyFormatter.format(amount);
+                subtotal += amount;
+            });
+
+            const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
+            const taxAmount = subtotal * (taxRate / 100);
+            const total = subtotal + taxAmount;
+
+            document.getElementById('subtotal').innerText = currencyFormatter.format(subtotal);
+            document.getElementById('tax-amount').innerText = currencyFormatter.format(taxAmount);
+            document.getElementById('total').innerText = currencyFormatter.format(total);
+        }
+
+        function addRow(desc = "", rate = "0.00", qty = "1") {
+            const container = document.getElementById('items-container');
+            const template = document.getElementById('row-template');
+            const clone = template.content.cloneNode(true);
+            
+            clone.querySelector('.item-desc').value = desc;
+            clone.querySelector('.item-rate').value = rate;
+            clone.querySelector('.item-qty').value = qty;
+
+            container.appendChild(clone);
+            feather.replace();
+            calculate();
+        }
+
+        function removeRow(button) {
+            const row = button.closest('.item-row');
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                calculate();
+                saveData(); // Trigger save on row deletion
+            } else {
+                alert("You must have at least one line item.");
+            }
+        }
+
+        // ---- LOCAL STORAGE: PERSISTENCE ----
+
+        // Auto-save triggers on any input change within the canvas
+        document.getElementById('invoice-canvas').addEventListener('input', () => {
+            calculate();
+            saveData();
+        });
+
+        function getInvoiceState() {
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    desc: row.querySelector('.item-desc').value,
+                    rate: row.querySelector('.item-rate').value,
+                    qty: row.querySelector('.item-qty').value
+                });
+            });
+
+            return {
+                title: document.getElementById('invoice-title').value,
+                companyInfo: document.getElementById('company-info').value,
+                invoiceNumber: document.getElementById('invoice-number').value,
+                invoiceDate: document.getElementById('invoice-date').value,
+                dueDate: document.getElementById('due-date').value,
+                poNumber: document.getElementById('po-number').value,
+                billedTo: document.getElementById('billed-to').value,
+                taxRate: document.getElementById('tax-rate').value,
+                notes: document.getElementById('notes').value,
+                terms: document.getElementById('terms').value,
+                items: items
+            };
+        }
+
+        function saveData() {
+            const data = getInvoiceState();
+            localStorage.setItem('savedInvoice', JSON.stringify(data));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('savedInvoice');
+            if (!saved) return; // Keep defaults if nothing is saved
+
+            try {
+                const data = JSON.parse(saved);
+                applyInvoiceState(data);
+            } catch (e) {
+                console.error("Error loading saved invoice", e);
+            }
+        }
+
+        function applyInvoiceState(data) {
+            document.getElementById('invoice-title').value = data.title || '';
+            document.getElementById('company-info').value = data.companyInfo || '';
+            document.getElementById('invoice-number').value = data.invoiceNumber || '';
+            document.getElementById('invoice-date').value = data.invoiceDate || '';
+            document.getElementById('due-date').value = data.dueDate || '';
+            document.getElementById('po-number').value = data.poNumber || '';
+            document.getElementById('billed-to').value = data.billedTo || '';
+            document.getElementById('tax-rate').value = data.taxRate || '0';
+            document.getElementById('notes').value = data.notes || '';
+            document.getElementById('terms').value = data.terms || '';
+
+            const container = document.getElementById('items-container');
+            container.innerHTML = ''; // clear current
+            
+            if (data.items && data.items.length > 0) {
+                data.items.forEach(item => addRow(item.desc, item.rate, item.qty));
+            } else {
+                addRow(); // At least one row
+            }
+            calculate();
+        }
+
+        // ---- CSV EXPORT / IMPORT ----
+
+        // Helper to format string for CSV (escapes quotes and wraps in quotes)
+        const escapeCSV = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+
+        function exportCSV() {
+            const data = getInvoiceState();
+            const headers = ["Invoice Number", "Invoice Title", "Company Info", "Invoice Date", "Due Date", "PO Number", "Billed To", "Item Description", "Item Rate", "Item Qty", "Tax Rate", "Notes", "Terms"];
+            
+            let csvContent = headers.join(",") + "\n";
+
+            // In order to keep records over time, we duplicate the invoice header info for every line item row.
+            // This makes sorting/filtering in Excel by Invoice Number extremely easy.
+            data.items.forEach(item => {
+                const row = [
+                    escapeCSV(data.invoiceNumber), escapeCSV(data.title), escapeCSV(data.companyInfo),
+                    escapeCSV(data.invoiceDate), escapeCSV(data.dueDate), escapeCSV(data.poNumber),
+                    escapeCSV(data.billedTo), escapeCSV(item.desc), escapeCSV(item.rate), escapeCSV(item.qty),
+                    escapeCSV(data.taxRate), escapeCSV(data.notes), escapeCSV(data.terms)
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            // Create Download Link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Invoice_${data.invoiceNumber || 'Export'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = parseCSVText(text);
+
+                if (rows.length < 2) {
+                    alert("Invalid CSV format or empty file.");
+                    return;
+                }
+
+                // Extract Main Header Data from the first item row (row[1])
+                const firstRow = rows[1];
+                const importedData = {
+                    invoiceNumber: firstRow[0], title: firstRow[1], companyInfo: firstRow[2],
+                    invoiceDate: firstRow[3], dueDate: firstRow[4], poNumber: firstRow[5],
+                    billedTo: firstRow[6], taxRate: firstRow[10], notes: firstRow[11], terms: firstRow[12],
+                    items: []
+                };
+
+                // Extract Line items from all data rows
+                for(let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length > 7 && (row[7] || row[8] || row[9])) { // Check if item data exists
+                        importedData.items.push({
+                            desc: row[7], rate: row[8], qty: row[9]
+                        });
+                    }
+                }
+
+                applyInvoiceState(importedData);
+                saveData(); // Save the newly imported data to local storage
+                event.target.value = ''; // Reset input so the same file can be loaded again if needed
+            };
+            reader.readAsText(file);
+        }
+
+        // Lightweight strict CSV parser that correctly handles quoted cells containing newlines/commas
+        function parseCSVText(text) {
+            let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;
+            for (l of text) {
+                if ('"' === l) {
+                    if (s && l === p) row[i] += l;
+                    s = !s;
+                } else if (',' === l && s) l = row[++i] = '';
+                else if ('\n' === l && s) {
+                    if ('\r' === p) row[i] = row[i].slice(0, -1);
+                    row = ret[++r] = [l = '']; i = 0;
+                } else row[i] += l;
+                p = l;
+            }
+            return ret.filter(r => r.length > 1 || r[0] !== ''); // filter out trailing empty lines
+        }
+
+        // ---- PDF GENERATION ----
+
+        function generatePDF() {
+            const invoice = document.getElementById('invoice-canvas');
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+            
+            invoice.classList.add('pdf-mode'); // Hide borders, add clean look
+            
+            // Adjust Textareas to avoid scrollbars in PDF
+            const textareas = invoice.querySelectorAll('textarea');
+            textareas.forEach(ta => {
+                ta.style.height = 'auto';
+                ta.style.height = ta.scrollHeight + 'px';
+            });
+
+            const opt = {
+                margin: [-0.1, 0, 0, 0],
+                filename: `Invoice_${document.getElementById('invoice-number').value || 'Export'}.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...`;
+            
+            html2pdf().set(opt).from(invoice).save().then(() => {
+                invoice.classList.remove('pdf-mode');
+                btn.innerHTML = originalHTML;
+                feather.replace();
+                textareas.forEach(ta => ta.style.height = ''); // Reset text heights
+            });
+        }
+
+        // On Page Load: Load saved data, or calculate defaults
+        window.onload = () => {
+            loadData();
+            calculate();
+        };
+    </script>
+</body>
+</html>
