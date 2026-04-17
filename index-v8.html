@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Invoice Generator</title>
+    <title>Professional Invoice & Receipt Generator</title>
     
     <!-- Google Fonts: Inter for clean modern, Playfair Display for elegant serif -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,12 +89,13 @@
         }
         ::placeholder { color: #94a3b8; opacity: 1; }
 
+        /* Custom selection color */
         ::selection { background-color: var(--color-accent-light); color: var(--color-brand); }
 
         /* SortableJS Drag Ghost */
         .sortable-ghost { opacity: 0.3; background-color: var(--color-accent-light); }
 
-        /* PDF Mode Hiding & formatting */
+        /* PDF Mode Hiding */
         .pdf-mode .no-print { display: none !important; }
         .pdf-mode input, .pdf-mode textarea {
             border-color: transparent !important; background: transparent !important;
@@ -105,9 +106,6 @@
         /* Hides sections completely if left empty during PDF render */
         .hidden-in-pdf { display: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
         .pdf-print-div { white-space: pre-wrap; word-break: break-word; }
-
-        /* Prevents awkward splitting across PDF pages */
-        .avoid-break { page-break-inside: avoid; break-inside: avoid; }
     </style>
 </head>
 <body class="py-12 theme-corporate transition-colors duration-500" id="body-theme">
@@ -120,7 +118,7 @@
             <p class="text-sm text-gray-500 mt-1 font-medium">Auto-saves locally. Drag rows to reorder.</p>
         </div>
         
-        <!-- Action Buttons aligned -->
+        <!-- Action Buttons in a straight line below -->
         <div class="flex flex-wrap items-center gap-3 w-full bg-white p-2 rounded-xl shadow-sm border border-gray-200">
             <!-- Theme Switcher -->
             <div class="relative flex-grow sm:flex-grow-0">
@@ -160,14 +158,14 @@
     </div>
 
     <!-- Invoice Canvas -->
-    <div id="invoice-canvas" class="max-w-5xl mx-auto bg-white shadow-2xl shadow-gray-200/50 sm:rounded-2xl overflow-hidden border border-gray-100 relative">
+    <div id="invoice-canvas" class="max-w-5xl mx-auto bg-white shadow-2xl shadow-gray-200/50 sm:rounded-2xl overflow-hidden border border-gray-100">
         <!-- Top Accent Bar -->
-        <div class="h-3 bg-accent w-full absolute top-0 left-0 right-0"></div>
+        <div class="h-3 bg-accent w-full"></div>
         
-        <div class="p-10 sm:p-16 pt-16 sm:pt-20">
+        <div class="p-10 sm:p-16">
             
             <!-- Header Section -->
-            <div class="flex flex-col sm:flex-row justify-between items-start pb-12 gap-8 avoid-break">
+            <div class="flex flex-col sm:flex-row justify-between items-start pb-12 gap-8">
                 <div class="w-full sm:w-1/2">
                     
                     <!-- Logo Upload Area -->
@@ -192,37 +190,35 @@
                     <textarea id="company-info" class="text-gray-500 leading-relaxed font-medium" rows="4" placeholder="Your Name / Freelance Studio&#10;123 Creative St.&#10;City, State, Zip&#10;hello@yourdomain.com"></textarea>
                 </div>
 
-                <div class="w-full sm:w-1/2 flex flex-col items-start sm:items-end gap-2 text-sm mt-4 sm:mt-0">
-                    <!-- Title -->
+                <div class="w-full sm:w-1/2 sm:text-right flex flex-col gap-3 text-sm items-end">
+                    <!-- Title (Can be changed to RECEIPT) -->
                     <input type="text" id="invoice-title" class="text-4xl sm:text-5xl font-bold text-brand uppercase tracking-tight mb-4 heading-font text-left sm:text-right w-full" value="INVOICE">
                     
-                    <!-- Strictly Aligned Details -->
-                    <div class="flex flex-col w-full sm:w-64 gap-1.5">
-                        <div class="pdf-hide-empty flex items-center justify-between py-1 group relative">
-                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Invoice No.</span>
-                            <div class="flex items-center justify-end w-32 relative">
-                                <input type="text" id="invoice-number" class="text-right font-semibold text-gray-900 w-full" value="INV-001">
-                                <!-- Sequence Buttons Hover -->
-                                <div class="absolute left-full ml-2 flex no-print items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onclick="autoNumber('seq')" class="text-gray-400 hover:text-accent p-1 bg-white rounded border border-gray-100 shadow-sm" title="Next Number"><i data-feather="plus" class="w-3 h-3"></i></button>
-                                    <button onclick="autoNumber('rand')" class="text-gray-400 hover:text-accent p-1 bg-white rounded border border-gray-100 shadow-sm ml-1" title="Random ID"><i data-feather="hash" class="w-3 h-3"></i></button>
-                                </div>
+                    <div class="pdf-hide-empty flex items-center justify-end gap-3 w-full bg-gray-50/50 p-2 rounded-lg">
+                        <div class="text-gray-400 font-bold uppercase tracking-wider text-[11px] w-1/3 text-right">Invoice No.</div>
+                        <div class="w-2/3 flex items-center justify-end gap-1">
+                            <input type="text" id="invoice-number" class="text-right font-semibold text-gray-900 w-full" value="INV-001">
+                            
+                            <!-- Sequence & Randomizer Buttons -->
+                            <div class="flex no-print items-center">
+                                <button onclick="autoNumber('seq')" class="text-gray-400 hover:text-accent p-1 bg-white rounded shadow-sm ml-1" title="Next Number"><i data-feather="plus" class="w-3 h-3"></i></button>
+                                <button onclick="autoNumber('rand')" class="text-gray-400 hover:text-accent p-1 bg-white rounded shadow-sm ml-1" title="Random ID"><i data-feather="hash" class="w-3 h-3"></i></button>
                             </div>
                         </div>
-                        <div class="pdf-hide-empty flex items-center justify-between py-1">
-                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Issue Date</span>
-                            <input type="text" id="invoice-date" class="text-right text-gray-900 font-medium w-32" value="Oct 24, 2024">
-                        </div>
-                        <div class="pdf-hide-empty flex items-center justify-between py-1">
-                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Due Date</span>
-                            <input type="text" id="due-date" class="text-right text-gray-900 font-medium w-32" value="Nov 24, 2024">
-                        </div>
+                    </div>
+                    <div class="pdf-hide-empty flex items-center justify-end gap-4 w-full pr-12 p-2">
+                        <div class="text-gray-400 font-bold uppercase tracking-wider text-[11px] w-1/2 text-right">Issue Date</div>
+                        <div class="w-1/2 text-right"><input type="text" id="invoice-date" class="text-right text-gray-900 font-medium" value="Oct 24, 2024"></div>
+                    </div>
+                    <div class="pdf-hide-empty flex items-center justify-end gap-4 w-full pr-12 p-2">
+                        <div class="text-gray-400 font-bold uppercase tracking-wider text-[11px] w-1/2 text-right">Due Date</div>
+                        <div class="w-1/2 text-right"><input type="text" id="due-date" class="text-right text-gray-900 font-medium" value="Nov 24, 2024"></div>
                     </div>
                 </div>
             </div>
 
             <!-- Client & Project Section -->
-            <div id="client-project-section" class="flex flex-col sm:flex-row justify-between items-start border-t border-gray-100 pt-8 mt-4 gap-8 avoid-break">
+            <div id="client-project-section" class="flex flex-col sm:flex-row justify-between items-start border-t border-gray-100 pt-8 mt-4 gap-8">
                 <div class="w-full sm:w-1/2 pdf-hide-empty bg-accent-light/30 p-5 rounded-xl border border-accent-light">
                     <h3 class="text-[11px] font-bold text-accent uppercase tracking-widest mb-3">Billed To</h3>
                     <textarea id="billed-to" class="text-gray-800 font-medium leading-relaxed" rows="4" placeholder="Client Name&#10;Company Name&#10;Client Address&#10;client@example.com"></textarea>
@@ -236,7 +232,7 @@
             <!-- Line Items -->
             <div class="mt-12">
                 <!-- Table Header -->
-                <div class="flex items-center bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-widest px-6 py-4 border-b-2 border-gray-200 avoid-break">
+                <div class="flex items-center bg-accent-light text-[11px] font-bold text-brand uppercase tracking-widest px-6 py-4 rounded-t-xl border-b border-accent/10">
                     <div class="w-8 no-print"></div> 
                     <div class="flex-1">Task / Deliverable</div>
                     <div class="w-32 text-right">Rate</div>
@@ -245,9 +241,9 @@
                     <div class="w-8 no-print"></div>
                 </div>
 
-                <div id="items-container">
+                <div id="items-container" class="border-b border-gray-200">
                     <!-- Default Row 1 -->
-                    <div class="item-row avoid-break flex items-start px-6 py-5 border-b border-gray-100 group bg-white hover:bg-gray-50/50 transition-colors">
+                    <div class="item-row flex items-start px-6 py-5 border-b border-gray-100 last:border-0 group bg-white hover:bg-gray-50/50 transition-colors">
                         <div class="w-8 pt-2 drag-handle cursor-grab text-gray-300 hover:text-accent no-print opacity-0 group-hover:opacity-100 transition-opacity">
                             <i data-feather="grid" class="w-4 h-4"></i>
                         </div>
@@ -268,44 +264,48 @@
                     </div>
                 </div>
 
-                <div class="px-6 py-4 no-print border-b border-gray-100 avoid-break">
-                    <button onclick="addRow()" class="text-sm font-semibold text-accent hover:opacity-80 flex items-center gap-2 bg-accent-light/50 hover:bg-accent-light px-4 py-2 rounded-lg transition-all">
+                <div class="px-6 py-4 no-print">
+                    <button onclick="addRow()" class="text-sm font-semibold text-accent hover:opacity-80 flex items-center gap-2 bg-accent-light px-4 py-2 rounded-lg transition-all">
                         <i data-feather="plus" class="w-4 h-4"></i> Add Line Item
                     </button>
                 </div>
             </div>
 
             <!-- Totals Section -->
-            <div class="flex justify-end mt-6 avoid-break">
+            <div class="flex justify-end mt-8">
                 <div class="w-full sm:w-1/2 lg:w-2/5">
                     <div class="px-6">
                         <div class="flex justify-between py-3 text-sm text-gray-500 border-b border-gray-100">
                             <span>Total Hours / Qty</span>
                             <span id="total-hours" class="font-medium text-gray-800">10</span>
                         </div>
-                        <div class="flex justify-between py-3 text-sm text-gray-500 border-b border-gray-100">
+                        <div class="flex justify-between py-3 text-sm text-gray-500">
                             <span>Subtotal</span>
                             <span id="subtotal" class="font-medium text-gray-800">$750.00</span>
                         </div>
-                        <div class="flex justify-between items-center py-3 text-sm text-gray-500">
+                        <div class="flex justify-between items-center py-3 text-sm text-gray-500 mb-2">
                             <div class="flex items-center gap-2">
                                 <span>Tax (%)</span>
                                 <input type="number" id="tax-rate" class="w-16 bg-gray-50 border-gray-200 border px-2 py-1 rounded text-right font-medium text-gray-800 focus:bg-white" value="0">
                             </div>
                             <span id="tax-amount" class="font-medium text-gray-800">$0.00</span>
                         </div>
-                        
-                        <!-- Professional Grand Total -->
-                        <div class="flex justify-between items-center py-4 mt-2 border-t-2 border-brand text-brand heading-font">
-                            <span class="text-lg font-bold tracking-wide uppercase text-[15px]">Total Due</span>
-                            <span id="total" class="text-2xl font-bold tracking-tight">$750.00</span>
+                    </div>
+                    
+                    <!-- Grand Total Card -->
+                    <div class="flex justify-between items-center p-6 mt-2 bg-brand text-white rounded-xl shadow-lg heading-font relative overflow-hidden">
+                        <!-- Decorative background element -->
+                        <div class="absolute -right-4 -top-10 opacity-10 pointer-events-none">
+                            <i data-feather="circle" class="w-32 h-32"></i>
                         </div>
+                        <span class="text-lg font-medium opacity-90 tracking-wide">Total Due</span>
+                        <span id="total" class="text-3xl font-bold tracking-tight">$750.00</span>
                     </div>
                 </div>
             </div>
 
             <!-- Footer / Notes -->
-            <div id="footer-section" class="mt-16 pt-10 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-8 avoid-break">
+            <div id="footer-section" class="mt-16 pt-10 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div class="pdf-hide-empty">
                     <h4 class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <i data-feather="info" class="w-3 h-3"></i> Payment Instructions
@@ -325,7 +325,7 @@
 
     <!-- Empty Row Template -->
     <template id="row-template">
-        <div class="item-row avoid-break flex items-start px-6 py-5 border-b border-gray-100 group bg-white hover:bg-gray-50/50 transition-colors">
+        <div class="item-row flex items-start px-6 py-5 border-b border-gray-100 last:border-0 group bg-white hover:bg-gray-50/50 transition-colors">
             <div class="w-8 pt-2 drag-handle cursor-grab text-gray-300 hover:text-accent no-print opacity-0 group-hover:opacity-100 transition-opacity">
                 <i data-feather="grid" class="w-4 h-4"></i>
             </div>
@@ -349,7 +349,7 @@
     <script>
         feather.replace();
         const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-        let currentLogoBase64 = '';
+        let currentLogoBase64 = ''; // Store logo in memory
 
         // ---- THEME LOGIC ----
         function changeTheme() {
@@ -358,7 +358,7 @@
             saveData();
         }
 
-        // ---- LOGO UPLOAD ----
+        // ---- LOGO UPLOAD COMPRESSION ----
         function handleLogoUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -367,6 +367,7 @@
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
+                    // Compress via Canvas
                     const canvas = document.createElement('canvas');
                     const MAX_WIDTH = 500; const MAX_HEIGHT = 250;
                     let width = img.width, height = img.height;
@@ -405,11 +406,11 @@
         function removeLogo(event) {
             event.stopPropagation();
             setLogo('');
-            document.getElementById('logo-upload').value = ''; 
+            document.getElementById('logo-upload').value = ''; // clear input
             saveData();
         }
 
-        // ---- AUTO-NUMBERING ----
+        // ---- INVOICE AUTO-NUMBERING ----
         function autoNumber(type) {
             const input = document.getElementById('invoice-number');
             let val = input.value.trim();
@@ -433,7 +434,7 @@
             saveData();
         }
 
-        // ---- TEXTAREA SIZING ----
+        // ---- AUTO-EXPAND TEXTAREAS ----
         function autoResizeTextarea(el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
@@ -441,7 +442,7 @@
         document.addEventListener('input', e => { if(e.target.tagName.toLowerCase() === 'textarea') autoResizeTextarea(e.target); });
         function resizeAllTextareas() { document.querySelectorAll('textarea').forEach(ta => autoResizeTextarea(ta)); }
 
-        // ---- CALCULATION ----
+        // ---- CORE LOGIC & CALCULATION ----
         function calculate() {
             const rows = document.querySelectorAll('.item-row');
             let subtotal = 0, totalHours = 0;
@@ -488,7 +489,7 @@
             } else alert("You must have at least one line item on your document.");
         }
 
-        // ---- LOCAL STORAGE ----
+        // ---- LOCAL STORAGE: PERSISTENCE ----
         document.getElementById('invoice-canvas').addEventListener('input', () => { calculate(); saveData(); });
 
         function getInvoiceState() {
@@ -513,10 +514,10 @@
             };
         }
 
-        function saveData() { localStorage.setItem('proInvoiceState2', JSON.stringify(getInvoiceState())); }
+        function saveData() { localStorage.setItem('proInvoiceState', JSON.stringify(getInvoiceState())); }
 
         function loadData() {
-            const saved = localStorage.getItem('proInvoiceState2');
+            const saved = localStorage.getItem('proInvoiceState');
             if (!saved) return; 
             try { applyInvoiceState(JSON.parse(saved)); } catch (e) { console.error("Error loading saved invoice", e); }
         }
@@ -548,7 +549,7 @@
             setTimeout(resizeAllTextareas, 10);
         }
 
-        // ---- CSV LOGIC ----
+        // ---- CSV EXPORT / IMPORT ----
         const escapeCSV = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
 
         function exportCSV() {
@@ -589,6 +590,7 @@
                         importedData.items.push({ desc: rows[i][7], rate: rows[i][8], qty: rows[i][9] });
                     }
                 }
+                // Keep the current logo and theme on import
                 importedData.logoBase64 = currentLogoBase64;
                 importedData.theme = document.getElementById('theme-select').value;
                 
@@ -609,7 +611,7 @@
             return ret.filter(r => r.length > 1 || r[0] !== ''); 
         }
 
-        // ---- PDF ENGINE ----
+        // ---- PDF GENERATION ENGINE ----
         function generatePDF() {
             const invoice = document.getElementById('invoice-canvas');
             const btn = event.currentTarget;
@@ -617,7 +619,7 @@
             
             invoice.classList.add('pdf-mode'); 
             
-            // Hide Empty Sections
+            // 1. Hide Empty Sections logic
             const hideWrappers = invoice.querySelectorAll('.pdf-hide-empty');
             hideWrappers.forEach(wrapper => {
                 const inputs = wrapper.querySelectorAll('input, textarea');
@@ -636,44 +638,37 @@
                 footer.classList.add('hidden-in-pdf');
             }
             
-            // Textarea & Specific Input fix (Swapping for <div> prevent html2canvas text clipping)
-            const elementsToSwap = invoice.querySelectorAll('textarea, #invoice-title');
+            // 2. Fix for Textarea cutoff: Swap textareas with divs before print
+            const textareas = invoice.querySelectorAll('textarea');
             const swaps = [];
             
-            elementsToSwap.forEach(el => {
+            textareas.forEach(ta => {
                 const div = document.createElement('div');
+                div.className = ta.className + ' pdf-print-div text-[13px]'; 
+                if(ta.classList.contains('item-desc')) div.classList.add('pt-1', 'font-medium');
+                if(ta.id === 'invoice-title') div.className = ta.className + ' pdf-print-div'; // preserve title styles
                 
-                if (el.id === 'invoice-title') {
-                    // Copy exactly for the title input
-                    div.className = el.className + ' break-words';
-                } else {
-                    // Specific logic for text areas
-                    div.className = el.className + ' pdf-print-div text-[13px]'; 
-                    if(el.classList.contains('item-desc')) div.classList.add('pt-1', 'font-medium');
-                }
-                
-                div.textContent = el.value;
-                el.parentNode.insertBefore(div, el);
-                el.style.display = 'none';
-                swaps.push({ el, div });
+                div.textContent = ta.value;
+                ta.parentNode.insertBefore(div, ta);
+                ta.style.display = 'none';
+                swaps.push({ ta, div });
             });
 
             const docTitle = document.getElementById('invoice-title').value.trim() || 'Document';
             const docNo = document.getElementById('invoice-number').value.trim() || 'Export';
 
-            // Configured margin and pagebreak rules for clean multi-page scaling
             const opt = {
-                margin: [0.3, 0, 0.3, 0],
+                margin: 0,
                 filename: `${docTitle}_${docNo}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
+                image: { type: 'jpeg', quality: 1 },
                 html2canvas: { scale: 2, useCORS: true, logging: false },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
             btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...`;
             
             html2pdf().set(opt).from(invoice).save().then(() => {
+                // 3. Restore UI
                 invoice.classList.remove('pdf-mode');
                 btn.innerHTML = originalHTML;
                 feather.replace();
@@ -689,6 +684,7 @@
             });
         }
 
+        // ---- INITIALIZE SORTABLEJS ----
         window.onload = () => {
             loadData();
             calculate();
@@ -698,7 +694,7 @@
                 handle: '.drag-handle',
                 animation: 150,
                 ghostClass: 'sortable-ghost',
-                onEnd: function() { saveData(); }
+                onEnd: function() { saveData(); } // Save new order locally
             });
         };
     </script>

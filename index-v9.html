@@ -636,26 +636,20 @@
                 footer.classList.add('hidden-in-pdf');
             }
             
-            // Textarea & Specific Input fix (Swapping for <div> prevent html2canvas text clipping)
-            const elementsToSwap = invoice.querySelectorAll('textarea, #invoice-title');
+            // Textarea fix
+            const textareas = invoice.querySelectorAll('textarea');
             const swaps = [];
             
-            elementsToSwap.forEach(el => {
+            textareas.forEach(ta => {
                 const div = document.createElement('div');
+                div.className = ta.className + ' pdf-print-div text-[13px]'; 
+                if(ta.classList.contains('item-desc')) div.classList.add('pt-1', 'font-medium');
+                if(ta.id === 'invoice-title') div.className = ta.className + ' pdf-print-div'; 
                 
-                if (el.id === 'invoice-title') {
-                    // Copy exactly for the title input
-                    div.className = el.className + ' break-words';
-                } else {
-                    // Specific logic for text areas
-                    div.className = el.className + ' pdf-print-div text-[13px]'; 
-                    if(el.classList.contains('item-desc')) div.classList.add('pt-1', 'font-medium');
-                }
-                
-                div.textContent = el.value;
-                el.parentNode.insertBefore(div, el);
-                el.style.display = 'none';
-                swaps.push({ el, div });
+                div.textContent = ta.value;
+                ta.parentNode.insertBefore(div, ta);
+                ta.style.display = 'none';
+                swaps.push({ ta, div });
             });
 
             const docTitle = document.getElementById('invoice-title').value.trim() || 'Document';
